@@ -1,0 +1,97 @@
+@TmsApi1_HostAddress = http://localhost:5221
+
+GET {{TmsApi1_HostAddress}}/weatherforecast/
+Accept: application/json
+###
+GET http://localhost:5221/api/assessments/results
+X-Training-User: Meseret
+###
+GET http://localhost:5221/api/enrollments/worker-smoke
+X-Training-User: Meseret
+###
+GET http://localhost:5221/api/enrollments
+###
+GET http://localhost:5221/api/enrollments/4083a430
+###
+POST http://localhost:5221/api/enrollments
+Content-Type: application/json
+
+{
+  "studentId": "S-001",
+  "courseCode": "CS-101"
+}
+###
+DELETE http://localhost:5221/api/enrollments/37e29a6a
+###
+GET http://localhost:5221/api/error
+###
+GET http://localhost:5221/scalar/v1 
+###
+GET http://localhost:5221/environment
+###
+curl  http://localhost:5221/api/test/deferred
+###
+curl http://localhost:5221/api/test/translation-fail
+###
+curl http://localhost:5221/api/reports/active-students-count
+###
+curl http://localhost:5221/api/reports/courses-by-enrollments
+###
+curl http://localhost:5221/api/reports/average-gpa-per-course
+###
+curl http://localhost:5221/api/reports/students-without-enrollments
+###
+curl http://localhost:5221/api/reports/students-without-enrollments-leftjoin
+###
+GET http://localhost:5221/api/test/students?page=1
+###
+GET http://localhost:5221/api/test/top-courses
+###
+GET http://localhost:5221/api/test/nplus1
+###
+GET http://localhost:5221/api/test/shaped-query
+###
+POST http://localhost:5221/api/test/archive-enrollments
+###
+GET http://localhost:5221/api/test/students-normal
+###
+GET http://localhost:5221/api/test/students-admin
+###
+POST http://localhost:5221/api/courses
+Content-Type: application/json
+
+{
+  "code": "CSE-101",
+  "title": "Web Development Fundamentals",
+  "maxCapacity": 30
+}
+
+###
+GET http://localhost:5221/api/courses
+###
+GET http://localhost:5221/api/courses/9999
+###
+GET http://localhost:5221/api/courses/{courseId:int}/enrollments
+###
+GET http://localhost:5221/api/courses/{id:int}
+###
+GET http://localhost:5221/api/courses?page=1&pageSize=10
+###
+GET http://localhost:5221/api/courses?page=1&pageSize=9999
+###
+GET http://localhost:5221/api/courses?search=fund
+###
+GET http://localhost:5221/api/courses/1
+###
+GET http://localhost:5221/api/courses/1/enrollments
+###
+POST http://localhost:5221/api/courses/1/enrollments
+Content-Type: application/json
+
+{
+  "studentId": 1
+}
+###
+GET http://localhost:5221/api/courses/1/enrollments/
+###
+GET http://localhost:5221/api/courses/1
