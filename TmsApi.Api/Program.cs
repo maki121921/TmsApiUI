@@ -7,6 +7,12 @@ using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
 using TmsApi.Api.Filters;
 using TmsApi.Api.Middlewares;
+using MediatR;
+using FluentValidation;
+using TmsApi.Api.ExceptionHandlers;
+using TmsApi.Application.Behaviors;
+using TmsApi.Application.Enrollments.Commands;
+
 
 
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +62,7 @@ options.SubstituteApiVersionInUrl = true;
 // update your scalar config
 
 
-builder.Services.AddProblemDetails();
+//builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 builder.Services
@@ -80,7 +86,25 @@ builder.Services.AddAuthentication("Training")
     TrainingAuthHandler>("Training", null);
 
 builder.Services.AddAuthorization();
+//M7
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(
+        typeof(EnrollStudentHandler).Assembly));
 
+builder.Services.AddValidatorsFromAssembly(
+    typeof(EnrollStudentValidator).Assembly);
+
+// LoggingBehavior FIRST — it must wrap ValidationBehavior
+builder.Services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(LoggingBehavior<,>));
+
+builder.Services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(ValidationBehavior<,>));
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -99,8 +123,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-
-
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
@@ -111,10 +133,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<V1DeprecationMiddleware>();
-
-app.MapControllers();
-
 app.UseMiddleware<RequestLoggingMiddleware>();
+app.MapControllers();
 
 app.MapGet("/", () => "TMS Running");
 
@@ -168,8 +188,8 @@ using (var scope = app.Services.CreateScope())
         context.Students.AddRange(students);
         var courses = new List<Course>
     {
-       new() { Code = "CS-101", Title = "Introduction to ComputerScience", MaxCapacity = 30 },
-       new() { Code = "CS-201", Title = "Data Structures and Algorithms", MaxCapacity = 25 },
+       new() { Code = "CSE-101", Title = "Introduction to ComputerScience", MaxCapacity = 30 },
+       new() { Code = "CSE-201", Title = "Data Structures and Algorithms", MaxCapacity = 25 },
        new() { Code = "MAT-101", Title = "Calculus I", MaxCapacity =40 }
      };
      context.Courses.AddRange(courses);

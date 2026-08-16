@@ -24,6 +24,22 @@ public class CourseService(TmsDbContext context, ILogger<CourseService> logger) 
             c.Enrollments.Count))
         .FirstOrDefaultAsync(ct);
 }
+
+    public Task<CourseResponseDto?> GetByCodeAsync(
+    string code,
+    CancellationToken ct)
+{
+    return context.Courses
+        .AsNoTracking()
+        .Where(c => c.Code == code)
+        .Select(c => new CourseResponseDto(
+            c.Id,
+            c.Code,
+            c.Title,
+            c.MaxCapacity,
+            c.Enrollments.Count))
+        .FirstOrDefaultAsync(ct);
+}
     //Creats a new Course
     public async Task<CourseResponseDto> CreateAsync(
     CreateCourseRequest request,
