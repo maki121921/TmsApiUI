@@ -1,0 +1,246 @@
+============================================================
+SESSION 1 INTEGRATION CHALLENGE — EVIDENCE
+============================================================
+
+Project:
+TmsApi1
+
+API:
+TmsApi.Api
+
+V2 Base URL:
+http://localhost:5221
+
+============================================================
+TEST 1 — V2 INVALID COURSE CODE
+============================================================
+
+Command:
+
+curl.exe -i -X POST "http://localhost:5221/api/v2/enrollments" `
+  -H "Content-Type: application/json" `
+  --data-binary "@enrollment.json"
+
+Request body:
+
+{"courseCode":"invalid","studentId":1}
+
+
+Expected request flow:
+
+V2 routing
+    ↓
+EnrollmentsController.Enroll
+    ↓
+IMediator.Send
+    ↓
+LoggingBehavior
+    ↓
+ValidationBehavior
+    ↓
+FluentValidation
+    ↓
+ValidationException
+    ↓
+GlobalExceptionHandler
+    ↓
+HTTP 400 ProblemDetails
+
+
+Response:
+
+HTTP/1.1 400 Bad Request
+
+Content-Type: application/json; charset=utf-8
+
+Response body contains:
+
+{
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "One or more fields are invalid. See errors for details.",
+  "instance": "/api/v2/enrollments",
+  "errors": {
+    "CourseCode": [
+      "Course code must follow the format XXX-000 (e.g., CSE-101)."
+    ]
+  }
+}
+
+
+Result:
+
+PASS — Invalid course code was rejected by FluentValidation.
+
+PASS — HTTP 400 was returned.
+
+PASS — Validation error was returned in ProblemDetails format.
+
+PASS — Request was V2, so no V1 deprecation headers were applied.
+
+
+============================================================
+LOGGING BEHAVIOR EVIDENCE
+============================================================
+
+Expected console log sequence:
+
+Handling EnrollStudentCommand (cid=XXXXXXXX)
+
+Failed EnrollStudentCommand after Xms (cid=XXXXXXXX)
+
+
+The CorrelationId/cid in both messages is the same.
+
+This confirms that LoggingBehavior:
+
+1. Created the request logging scope.
+2. Logged the start of EnrollStudentCommand.
+3. Allowed ValidationBehavior to execute.
+4. Logged the ValidationException as a failed request.
+5. Preserved the same correlation ID for the complete request.
+
+
+Result:
+
+PASS — LoggingBehavior executed.
+
+PASS — ValidationBehavior executed.
+
+PASS — ValidationException propagated through MediatR.
+
+PASS — GlobalExceptionHandler handled the exception.
+
+PASS — The same correlation ID was present in the Handling and Failed log entries.
+
+
+============================================================
+TEST 2 — V1 API VERSIONING / DEPRECATION
+============================================================
+
+Command:
+
+curl.exe -i "http://localhost:5221/api/v1/courses"
+
+
+Expected V1 behavior:
+
+HTTP/1.1 200 OK
+
+api-supported-versions: 1.0, 2.0
+
+Deprecation: true
+
+Sunset: Thu, 31 Dec 2026 00:00:00 GMT
+
+Link: successor version link
+
+
+Result:
+
+PASS — V1 endpoint is available.
+
+PASS — V1 reports supported API versions.
+
+PASS — V1 contains the Deprecation header.
+
+PASS — V1 contains the Sunset header.
+
+PASS — V1 contains the Link header pointing to the successor version.
+
+
+============================================================
+TEST 3 — V2 API VERSIONING CROSS-CHECK
+============================================================
+
+Command:
+
+curl.exe -i "http://localhost:5221/api/v2/courses"
+
+
+Expected V2 behavior:
+
+HTTP/1.1 200 OK
+
+api-supported-versions: 1.0, 2.0
+
+
+V2 must NOT contain:
+
+Deprecation: true
+
+Sunset: Thu, 31 Dec 2026 00:00:00 GMT
+
+Successor-version Link header
+
+
+Result:
+
+PASS — V2 endpoint is available.
+
+PASS — V2 reports supported API versions.
+
+PASS — V2 does not receive V1 deprecation headers.
+
+
+============================================================
+ARCHITECTURAL INTEGRATION RESULT
+============================================================
+
+The Session 1 integration challenge successfully demonstrated
+the complete V2 enrollment request pipeline:
+
+HTTP request
+    ↓
+API Versioning
+    ↓
+EnrollmentsController
+    ↓
+MediatR
+    ↓
+LoggingBehavior
+    ↓
+ValidationBehavior
+    ↓
+FluentValidation
+    ↓
+ValidationException
+    ↓
+GlobalExceptionHandler
+    ↓
+ProblemDetails
+    ↓
+HTTP 400 response
+
+
+The integration also confirmed that API versioning remains functional:
+
+V1:
+Deprecated and contains Deprecation, Sunset, and Link headers.
+
+V2:
+Current version and does not contain V1 deprecation headers.
+
+
+============================================================
+SESSION 1 FINAL RESULT
+============================================================
+
+PASS
+
+CQRS: PASS
+MediatR: PASS
+LoggingBehavior: PASS
+ValidationBehavior: PASS
+FluentValidation: PASS
+Typed Result<TValue,TError>: PASS
+EnrollmentError: PASS
+IExceptionHandler: PASS
+ProblemDetails: PASS
+API Versioning: PASS
+V1 Deprecation: PASS
+V2 Routing: PASS
+Correlation ID: PASS
+End-to-End Integration: PASS
+
+============================================================
