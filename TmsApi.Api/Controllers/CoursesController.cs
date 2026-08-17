@@ -11,7 +11,7 @@ namespace TmsApi.Api.Controllers;
 [Tags("Courses")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-public class CoursesController(ICourseService courseService, LinkGenerator linkGenerator) : ControllerBase
+public class CoursesController(ICourseService courseService,ICachedCourseService cachedService, LinkGenerator linkGenerator) : ControllerBase
 {
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
     [ProducesResponseType(typeof(CourseDetailDto), StatusCodes.Status200OK)]
@@ -86,8 +86,6 @@ public class CoursesController(ICourseService courseService, LinkGenerator linkG
 
     return Ok(detail);
     }
-    
-
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
     [EndpointSummary("List courses with pagination")]
@@ -100,7 +98,7 @@ public class CoursesController(ICourseService courseService, LinkGenerator linkG
      return Ok(result);
    }
 
-    [HttpPost]
+     [HttpPost]
     [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -120,11 +118,13 @@ public class CoursesController(ICourseService courseService, LinkGenerator linkG
         });
     }
         
-        var result = await courseService.CreateAsync(request, ct);
+       var result = await courseService.CreateAsync(request, ct);
 
-        return CreatedAtAction(
-            nameof(GetCourseById),
-            new { id = result.Id },
-            result);
+await cachedService.InvalidateCourseCacheAsync(ct);
+
+return CreatedAtAction(
+    nameof(GetCourseById),
+    new { id = result.Id },
+    result);
     }
 }
