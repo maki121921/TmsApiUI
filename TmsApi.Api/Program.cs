@@ -208,6 +208,15 @@ options.AddTokenBucketLimiter("search", opt =>
     };
 });
 
+builder.Services.AddCors(options =>
+{
+options.AddPolicy("AllowAngular", policy =>
+policy.WithOrigins("http://localhost:4200")
+.AllowAnyHeader()
+.AllowAnyMethod());
+});
+
+
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
@@ -232,6 +241,7 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 app.UseRateLimiter();
+app.UseCors("AllowAngular");
 
 app.UseAuthentication();
 app.UseAuthorization();
