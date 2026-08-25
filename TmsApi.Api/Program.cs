@@ -21,7 +21,13 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using TmsApi.Api.RateLimiting;
-
+using TmsApi.Infrastructure.Transcripts;
+using System.Threading.Channels;
+using TmsApi.Application.Transcripts;
+using TmsApi.Infrastructure.Workers;
+using TmsApi.Api.Hubs;
+using TmsApi.Api.Notifications;
+using TmsApi.Application.Notifications;
 var builder = WebApplication.CreateBuilder(args);
 
 // Register TmsDbContext scoped for incoming HTTP requests
@@ -29,13 +35,13 @@ builder.Services.AddDbContext<TmsDbContext>(options =>
 options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
 .LogTo(Console.WriteLine, LogLevel.Information)
 .EnableSensitiveDataLogging());
-            
-
-
-builder.Services.AddControllers(options =>
+            builder.Services.AddControllers(options =>
 {
     options.Filters.Add<AuditLogFilter>();
 });
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ITranscriptNotificationService,
+    SignalRTranscriptNotificationService>();
 //API Versioning
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -50,7 +56,7 @@ description.GroupName == "v2";
 builder.Services.AddApiVersioning(options =>
 {
 options.DefaultApiVersion = new ApiVersion(1, 0);
-options.AssumeDefaultVersionWhenUnspecified = true;
+options.AssumeDefaultVersionWhenUnspecified = false;
 options.ReportApiVersions = true;
 options.ApiVersionReader = ApiVersionReader.Combine(
         new UrlSegmentApiVersionReader(),
@@ -82,8 +88,14 @@ builder.Host.UseDefaultServiceProvider(options =>
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
+builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
+builder.Services.AddSingleton(Channel.CreateBounded<TranscriptRequest>(
+new BoundedChannelOptions(100)
+{
+FullMode = BoundedChannelFullMode.Wait
+}));
 
-
+builder.Services.AddHostedService<TranscriptWorker>();
 builder.Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions,
     TrainingAuthHandler>("Training", null);
@@ -247,7 +259,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<V1DeprecationMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.MapControllers();
+app.MapHub<TmsHub>("/hubs/tms");
 
 app.MapGet("/", () => "TMS Running");
 
