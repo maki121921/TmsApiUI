@@ -106,4 +106,15 @@ public async Task<IReadOnlyList<Enrollment>> GetByStudentIdAsync(
         .Where(e => e.StudentId == studentId)
         .ToListAsync(ct);
 }
+
+public async Task<IReadOnlyList<Enrollment>> GetAllAsync(
+    CancellationToken ct)
+{
+    return await context.Enrollments
+        .AsNoTracking()
+        .Include(e => e.Student)
+        .Include(e => e.Course)
+        .Where(e => !e.IsArchived)
+        .ToListAsync(ct);
+}
 }

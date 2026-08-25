@@ -46,6 +46,17 @@ public class EnrollmentsController(IMediator mediator) : ControllerBase
             });
     }
 
+    [HttpGet]
+public async Task<IActionResult> GetEnrollments(
+    CancellationToken ct)
+{
+    var enrollments = await mediator.Send(
+        new GetEnrollmentsQuery(),
+        ct);
+
+    return Ok(enrollments);
+}
+
     [HttpGet("{studentId}/schedule")]
     public async Task<IActionResult> GetSchedule(
         int studentId,

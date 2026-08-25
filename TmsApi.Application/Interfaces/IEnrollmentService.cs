@@ -29,4 +29,6 @@ public interface IEnrollmentService
     Task<IReadOnlyList<Enrollment>> GetByStudentIdAsync(
         int studentId,
         CancellationToken ct);
+    Task<IReadOnlyList<Enrollment>> GetAllAsync(
+    CancellationToken ct);
 }
