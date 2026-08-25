@@ -1,15 +1,18 @@
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Enrollments.Queries;
+using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers;
 
 [ApiController]
 [Route("api/v{version:apiVersion}/enrollments")]
 [ApiVersion("2.0")]
-public class EnrollmentsController(IMediator mediator) : ControllerBase
+public class EnrollmentsController(IMediator mediator, TmsDbContext context ,IEnrollmentService enrollmentService) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Enroll(
@@ -68,4 +71,17 @@ public async Task<IActionResult> GetEnrollments(
 
         return Ok(schedule);
     }
+   [HttpPost("{id}/approve")]
+public async Task<IActionResult> Approve(
+    int id,
+    CancellationToken ct)
+{
+    var success = await enrollmentService.ApproveAsync(id, ct);
+
+    if (!success)
+        return NotFound();
+
+    return Ok();
+}
+
 }

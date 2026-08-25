@@ -117,4 +117,20 @@ public async Task<IReadOnlyList<Enrollment>> GetAllAsync(
         .Where(e => !e.IsArchived)
         .ToListAsync(ct);
 }
+public async Task<bool> ApproveAsync(
+    int id,
+    CancellationToken ct)
+{
+    var enrollment = await context.Enrollments
+        .FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    if (enrollment is null)
+        return false;
+
+    enrollment.Status = "Approved";
+
+    await context.SaveChangesAsync(ct);
+
+    return true;
+}
 }

@@ -20,9 +20,9 @@ public sealed class GetEnrollmentsQueryHandler(
                 e.Student.Name,
                 e.CourseId,
                 e.Course.Title,
-                e.Grade.HasValue
-                    ? e.Grade.Value.ToString()
-                    : "Pending",
+                string.IsNullOrEmpty(e.Status)
+            ? "Pending"
+            : e.Status,
                 e.EnrolledAt
             ))
             .ToList();
