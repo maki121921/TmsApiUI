@@ -6,13 +6,20 @@ using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Enrollments.Queries;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
+using Microsoft.AspNetCore.SignalR;
+using TmsApi.Application.Hubs;
+using TmsApi.Api.Hubs;
 
 namespace TmsApi.Api.Controllers;
 
 [ApiController]
 [Route("api/v{version:apiVersion}/enrollments")]
 [ApiVersion("2.0")]
-public class EnrollmentsController(IMediator mediator, TmsDbContext context ,IEnrollmentService enrollmentService) : ControllerBase
+public class EnrollmentsController(
+    IMediator mediator,
+    TmsDbContext context,
+    IEnrollmentService enrollmentService,
+    IHubContext<TmsHub, ITmsHubClient> hubContext) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Enroll(
@@ -50,15 +57,15 @@ public class EnrollmentsController(IMediator mediator, TmsDbContext context ,IEn
     }
 
     [HttpGet]
-public async Task<IActionResult> GetEnrollments(
-    CancellationToken ct)
-{
-    var enrollments = await mediator.Send(
-        new GetEnrollmentsQuery(),
-        ct);
+    public async Task<IActionResult> GetEnrollments(
+        CancellationToken ct)
+    {
+        var enrollments = await mediator.Send(
+            new GetEnrollmentsQuery(),
+            ct);
 
-    return Ok(enrollments);
-}
+        return Ok(enrollments);
+    }
 
     [HttpGet("{studentId}/schedule")]
     public async Task<IActionResult> GetSchedule(
@@ -71,17 +78,22 @@ public async Task<IActionResult> GetEnrollments(
 
         return Ok(schedule);
     }
-   [HttpPost("{id}/approve")]
-public async Task<IActionResult> Approve(
-    int id,
-    CancellationToken ct)
-{
-    var success = await enrollmentService.ApproveAsync(id, ct);
 
-    if (!success)
-        return NotFound();
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> Approve(
+        int id,
+        CancellationToken ct)
+    {
+        var success = await enrollmentService.ApproveAsync(id, ct);
 
-    return Ok();
-}
+        if (!success)
+            return NotFound();
 
+        await hubContext.Clients.All
+            .ReceiveEnrollmentStatusUpdated(
+                id.ToString(),
+                "Approved");
+
+        return Ok();
+    }
 }
