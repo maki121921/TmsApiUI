@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Routing;
 using TmsApi.Domain.Entities;
 using TmsApi.Application.Interfaces;
@@ -7,7 +8,8 @@ using TmsApi.Application.DTOs;
 namespace TmsApi.Api.Controllers;
 
 [ApiController]
-[Route("api/courses")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/courses")]
 [Tags("Courses")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
@@ -127,4 +129,45 @@ return CreatedAtAction(
     new { id = result.Id },
     result);
     }
+    [HttpDelete("{id:int}")]
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+public async Task<IActionResult> DeleteCourse(
+    int id,
+    CancellationToken ct)
+{
+    var course = await courseService.GetByIdAsync(id, ct);
+
+    if (course is null)
+    {
+        return Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Course not found",
+            detail: $"Course with ID {id} was not found.",
+            type: "https://tms.local/errors/course_not_found");
+    }
+
+    if (course.EnrollmentCount > 0)
+    {
+        return Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Course deletion rejected",
+            detail: $"Course {course.Code} cannot be deleted because active enrollments exist.",
+            type: "https://tms.local/errors/course_has_enrollments");
+    }
+
+    var deleted = await courseService.DeleteAsync(id, ct);
+
+    if (!deleted)
+    {
+        return Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Course not found",
+            detail: $"Course with ID {id} was not found.",
+            type: "https://tms.local/errors/course_not_found");
+    }
+
+    return NoContent();
+}
 }

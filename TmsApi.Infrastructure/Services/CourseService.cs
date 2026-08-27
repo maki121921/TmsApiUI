@@ -144,4 +144,28 @@ public async Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(
 
     return await GetByIdAsync(course.Id, ct);
 }
+public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+{
+    var course = await context.Courses
+        .Include(c => c.Enrollments)
+        .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+    if (course is null)
+        return false;
+
+    if (course.Enrollments.Any())
+        throw new InvalidOperationException(
+            $"Course {course.Code} cannot be deleted because active enrollments exist.");
+
+    context.Courses.Remove(course);
+
+    await context.SaveChangesAsync(ct);
+
+    logger.LogInformation(
+        "Deleted course {CourseId} ({Code})",
+        course.Id,
+        course.Code);
+
+    return true;
+}
 }

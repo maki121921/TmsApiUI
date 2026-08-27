@@ -28,6 +28,7 @@ using TmsApi.Infrastructure.Workers;
 using TmsApi.Api.Hubs;
 using TmsApi.Api.Notifications;
 using TmsApi.Application.Notifications;
+using Microsoft.AspNetCore.Antiforgery;
 var builder = WebApplication.CreateBuilder(args);
 
 // Register TmsDbContext scoped for incoming HTTP requests
@@ -228,6 +229,27 @@ policy.WithOrigins("http://localhost:4200")
 .AllowAnyMethod());
 });
 
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>()
+    ?? ["http://localhost:4200"];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("TmsClient", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-XSRF-TOKEN";
+});
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -253,10 +275,33 @@ app.UseStatusCodePages();
 
 app.UseRouting();
 app.UseRateLimiter();
-app.UseCors("AllowAngular");
+app.UseCors("TmsClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true ||
+        context.Request.Cookies.ContainsKey("tms_auth"))
+    {
+        var antiforgery = context.RequestServices
+            .GetRequiredService<IAntiforgery>();
+
+        var tokens = antiforgery.GetAndStoreTokens(context);
+
+        context.Response.Cookies.Append(
+            "XSRF-TOKEN",
+            tokens.RequestToken!,
+            new CookieOptions
+            {
+                HttpOnly = false,
+                Secure = !builder.Environment.IsDevelopment(),
+                SameSite = SameSiteMode.Strict
+            });
+    }
+
+    await next(context);
+});
 app.UseMiddleware<V1DeprecationMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 

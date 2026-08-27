@@ -22,4 +22,5 @@ public interface ICourseService
     int id,
     UpdateCourseRequest request,
     CancellationToken ct);
+    Task<bool> DeleteAsync(int id, CancellationToken ct);
 }
