@@ -31,6 +31,12 @@ using TmsApi.Application.Notifications;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using TmsApi.Infrastructure.Identity;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Tms.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,6 +53,7 @@ options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITranscriptNotificationService,
     SignalRTranscriptNotificationService>();
+
 //API Versioning
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -99,6 +106,7 @@ new BoundedChannelOptions(100)
 {
 FullMode = BoundedChannelFullMode.Wait
 }));
+builder.Services.AddScoped<TokenService>();
 
 builder.Services.AddHostedService<TranscriptWorker>();
 builder.Services.AddAuthentication("Training")
@@ -106,6 +114,7 @@ builder.Services.AddAuthentication("Training")
     TrainingAuthHandler>("Training", null);
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, CourseInstructorHandler>();
 //M7
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(
@@ -270,7 +279,46 @@ builder.Services.AddIdentityCore<TmsUser>(options =>
 })
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<TmsDbContext>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme =
+        JwtBearerDefaults.AuthenticationScheme;
 
+    options.DefaultChallengeScheme =
+        JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"]!
+            )
+        )
+    };
+});
+builder.Services.AddAuthorizationBuilder()
+.AddPolicy("CanEditCourse", policy =>
+policy.Requirements.Add(new CourseInstructorRequirement()));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AuthLimiter", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
@@ -287,7 +335,26 @@ if (app.Environment.IsDevelopment())
             .AddDocument("v2", "API Version 2.0");
     });
 }
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append(
+        "X-Content-Type-Options",
+        "nosniff");
 
+    context.Response.Headers.Append(
+        "X-Frame-Options",
+        "DENY");
+
+    context.Response.Headers.Append(
+        "Referrer-Policy",
+        "strict-origin-when-cross-origin");
+
+    context.Response.Headers.Append(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';");
+
+    await next();
+});
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
