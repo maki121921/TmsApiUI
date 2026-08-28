@@ -29,6 +29,10 @@ using TmsApi.Api.Hubs;
 using TmsApi.Api.Notifications;
 using TmsApi.Application.Notifications;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Identity;
+using TmsApi.Infrastructure.Identity;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Register TmsDbContext scoped for incoming HTTP requests
@@ -251,6 +255,22 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-XSRF-TOKEN";
 });
 
+builder.Services.AddIdentityCore<TmsUser>(options =>
+{
+    // Enterprise Password Policy
+    options.Password.RequiredLength = 12;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+
+    // Brute-Force Lockout Protection
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.AllowedForNewUsers = true;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<TmsDbContext>();
+
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
@@ -267,6 +287,7 @@ if (app.Environment.IsDevelopment())
             .AddDocument("v2", "API Version 2.0");
     });
 }
+
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -306,7 +327,7 @@ app.UseMiddleware<V1DeprecationMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapControllers();
-app.MapHub<TmsHub>("/hubs/tms");
+app.MapHub<TmsHub>("/hubs/tms").RequireCors("TmsClient");
 
 app.MapGet("/", () => "TMS Running");
 
