@@ -255,5 +255,39 @@ Console.WriteLine($"PASSWORD VALID = {validPassword}");
             refreshToken = newRefreshToken.Token
         });
     }
+    public record ResetPasswordRequest(
+    string Email,
+    string NewPassword);
+    [HttpPost("reset-test-password")]
+public async Task<IActionResult> ResetTestPassword(
+    [FromBody] ResetPasswordRequest request)
+{
+    var user = await _userManager.FindByEmailAsync(request.Email);
+
+    if (user == null)
+    {
+        return NotFound(new { detail = "User not found." });
+    }
+    user.PasswordHash = _userManager.PasswordHasher.HashPassword( user, request.NewPassword);
+    user.AccessFailedCount = 0; user.LockoutEnd = null;
+
+    
+
+   var result = await _userManager.UpdateAsync(user);
+
+    if (!result.Succeeded)
+    {
+        return BadRequest(new
+        {
+            errors = result.Errors.Select(e => e.Description)
+        });
+    }
+
+    
+
+    return Ok(new { message = "Password reset successfully." });
+}
+
+
 }
 
